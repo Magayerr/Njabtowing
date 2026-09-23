@@ -1,0 +1,6 @@
+# Lead data, send history and the STOP list hold personal information (POPIA).
+# Keep them on your own machine, never in the repo.
+*.xlsx
+netjet_send_log.csv
+netjet_suppress.txt
+__pycache__/
