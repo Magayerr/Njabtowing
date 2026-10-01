@@ -4,3 +4,6 @@
 netjet_send_log.csv
 netjet_suppress.txt
 __pycache__/
+sequence_log.csv
+sequence_log.csv.tmp
+do_not_contact.csv
