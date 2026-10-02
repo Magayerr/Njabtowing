@@ -131,7 +131,7 @@ Project admin, quoting and purchase orders in one place
 Billing and dashboards that show project profitability at a glance
 Sage integration if you already run your accounts there
 
-Pricing is simple. R149 per user a month for the full toolset, or R99 per user a month if you only need time tracking to start.
+Pricing is simple. R149 per user a month for a single module, or R349 per user a month for the full system.
 
 Would you be open to a short call this week? I can show you exactly how it would sit on top of your current projects, no obligation.
 
@@ -149,7 +149,7 @@ I represent NetJet, a cloud based project and time management platform out of Du
 
 With NetJet your team logs time and progress as they work, your project leads see status and budget in real time, and quoting, purchase orders and billing all run from the same system instead of five different spreadsheets.
 
-We offer it at R149 per user a month for full access, or R99 per user a month for a lighter time tracking only option if you want to start small.
+We offer it at R149 per user a month for a single module, or R349 per user a month for the full system.
 
 I would like to show you a short demo built around a project like yours. Would you have 15 minutes this week or next?
 
@@ -165,7 +165,7 @@ Most of the project businesses I speak to run timesheets, quoting and billing ac
 
 NetJet brings that into one system. Your team logs hours and progress against each project, your office sees budget and profitability while the job is still running, and quoting, purchase orders and billing all sit in the same place. It is built and used every day by Charisma Technology, a Durban based software company with 15 years in custom project systems.
 
-Two ways to get started. R99 per user a month for time tracking on its own, or R149 per user a month for the full set of tools including quoting, billing and Sage integration.
+Two ways to get started. R149 per user a month for a single module, or R349 per user a month for the full system including quoting, billing and Sage integration.
 
 Happy to run a short demo using a project similar to what {company} handles, so you can see it against real numbers rather than a generic pitch. Would that be worth 15 minutes?
 

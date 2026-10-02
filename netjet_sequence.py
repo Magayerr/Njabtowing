@@ -80,6 +80,10 @@ TEST_RECIPIENT = "sduduzocele43@gmail.com"
 
 PILOT_OFFER = False
 
+# Blocks every Email 2 (and so every Email 3) until set to False. Email 1s
+# keep going out. Held prospects wait and go out on the first run after.
+HOLD_STEP_2 = True
+
 DAILY_LIMIT = 40                 # all three steps together
 MIN_DELAY_SECONDS = 90
 MAX_DELAY_SECONDS = 240
@@ -100,6 +104,7 @@ SHEET_NAME = "Email Leads"
 LOG_PATH = "sequence_log.csv"
 DNC_PATH = "do_not_contact.csv"
 OLD_SUPPRESSION_PATH = "netjet_suppress.txt"   # STOP list from netjet_outreach.py
+OLD_SEND_LOG_PATH = "netjet_send_log.csv"      # send log from netjet_outreach.py
 
 LOG_FIELDS = ["email", "company", "first_name", "step_sent", "last_sent_at", "message_id", "status"]
 DNC_FIELDS = ["email", "reason", "added_at"]
@@ -258,7 +263,9 @@ def load_prospects(path=INPUT_PATH, sheet=SHEET_NAME):
     def cell(row, name):
         return row[idx[name]] if name in idx else None
 
-    report = {"rows": 0, "blank": 0, "invalid": 0, "duplicate": 0, "previously_emailed": 0}
+    old_tool_sent = read_old_tool_sent()
+    report = {"rows": 0, "blank": 0, "invalid": 0, "duplicate": 0, "previously_emailed": 0,
+              "old_tool": 0}
     seen, prospects = set(), []
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not cell(row, "Company"):
@@ -282,6 +289,9 @@ def load_prospects(path=INPUT_PATH, sheet=SHEET_NAME):
         if prev and SKIP_PREVIOUSLY_EMAILED:
             report["previously_emailed"] += 1
             continue
+        if addr in old_tool_sent:
+            report["old_tool"] += 1
+            continue
         prospects.append({
             "email": addr,
             "company": clean_company(cell(row, "Company")),
@@ -295,6 +305,15 @@ def load_prospects(path=INPUT_PATH, sheet=SHEET_NAME):
 # ---------------------------------------------------------------------------
 # State files
 # ---------------------------------------------------------------------------
+
+def read_old_tool_sent():
+    """Addresses netjet_outreach.py already emailed live. They get no Email 1."""
+    if not os.path.exists(OLD_SEND_LOG_PATH):
+        return set()
+    with open(OLD_SEND_LOG_PATH, encoding="utf-8", newline="") as f:
+        return {r["email"].strip().lower() for r in csv.DictReader(f)
+                if r.get("status") == "sent" and r.get("mode") == "live"}
+
 
 def read_log():
     if not os.path.exists(LOG_PATH):
@@ -380,7 +399,7 @@ def is_due(r, today):
     step = int(r["step_sent"])
     if step == 0:
         return True
-    if step >= 3:
+    if step >= 3 or (step == 1 and HOLD_STEP_2):
         return False
     last = parse_ts(r["last_sent_at"])
     return last is not None and today >= last.date() + timedelta(days=STEP_GAP_DAYS[step + 1])
@@ -647,7 +666,8 @@ def print_report(state, findings, phones):
     active = [r for r in state.values() if r["status"] == "active"]
     print("\nProspects left in each step:")
     print(f"  Waiting for Email 1: {sum(1 for r in active if r['step_sent'] == '0')}")
-    print(f"  Waiting for Email 2: {sum(1 for r in active if r['step_sent'] == '1')}")
+    waiting_2 = sum(1 for r in active if r['step_sent'] == '1')
+    print(f"  Waiting for Email 2: {waiting_2}" + ("  (ON HOLD: HOLD_STEP_2 = True)" if HOLD_STEP_2 else ""))
     print(f"  Waiting for Email 3: {sum(1 for r in active if r['step_sent'] == '2')}")
     for status in ("completed", "replied", "stopped", "bounced"):
         print(f"  {status.capitalize()}: {sum(1 for r in state.values() if r['status'] == status)}")
@@ -668,6 +688,8 @@ def cmd_list(args):
     print(f"  Duplicate email:      {rep['duplicate']}")
     if SKIP_PREVIOUSLY_EMAILED:
         print(f"  Previously emailed (job search), skipped: {rep['previously_emailed']}")
+    if os.path.exists(OLD_SEND_LOG_PATH):
+        print(f"  Already emailed by netjet_outreach.py ({OLD_SEND_LOG_PATH}): {rep['old_tool']}")
     dnc = read_dnc()
     on_dnc = sum(1 for p in prospects if p["email"] in dnc)
     if on_dnc:
@@ -681,7 +703,7 @@ def cmd_dry_run(args):
     prospects, rep, _ = load_prospects(args.input)
     sample = prospects[: args.count]
     print(f"DRY RUN. Nothing is sent. {rep['valid']} valid prospects; showing {len(sample)} per step.")
-    print(f"PILOT_OFFER = {PILOT_OFFER}\n")
+    print(f"PILOT_OFFER = {PILOT_OFFER}   HOLD_STEP_2 = {HOLD_STEP_2}\n")
     for step in (1, 2, 3):
         for p in sample:
             subject, body = render(step, p["company"], p["first_name"])
@@ -704,6 +726,8 @@ def cmd_test(args):
         p = matches[0]
     else:
         p = prospects[0]
+    if HOLD_STEP_2:
+        print("Note: HOLD_STEP_2 only blocks prospects. The test still sends Email 2 to you.")
     print(f"TEST: sending Email 1, 2 and 3 to {TEST_RECIPIENT} only, personalised as "
           f"{p['company']} / {p['first_name'] or 'Good day'}. No prospect is emailed.")
     password = getpass.getpass(f"Password for {FROM_EMAIL}: ")
@@ -755,6 +779,10 @@ def cmd_run(args):
     followups = sorted((r for r in due if r["step_sent"] != "0"), key=lambda r: r["last_sent_at"])
     fresh = [r for r in due if r["step_sent"] == "0"]
     queue = (followups + fresh)[:room]
+    if HOLD_STEP_2:
+        held = sum(1 for r in state.values() if r["status"] == "active" and r["step_sent"] == "1"
+                   and parse_ts(r["last_sent_at"]).date() + timedelta(days=STEP_GAP_DAYS[2]) <= today)
+        print(f"\nEmail 2 is ON HOLD (HOLD_STEP_2 = True). {held} prospect(s) would otherwise be due.")
 
     if not in_send_window(now):
         print(f"\nOutside the send window (Mon to Fri, {SEND_START_HOUR:02d}:00 to "
