@@ -784,7 +784,9 @@ def cmd_run(args):
                    and parse_ts(r["last_sent_at"]).date() + timedelta(days=STEP_GAP_DAYS[2]) <= today)
         print(f"\nEmail 2 is ON HOLD (HOLD_STEP_2 = True). {held} prospect(s) would otherwise be due.")
 
-    if not in_send_window(now):
+    if args.ignore_window:
+        print(f"\nSEND WINDOW IGNORED for this run (--ignore-window). Now {now:%a %H:%M} SAST.")
+    elif not in_send_window(now):
         print(f"\nOutside the send window (Mon to Fri, {SEND_START_HOUR:02d}:00 to "
               f"{SEND_END_HOUR:02d}:00 SAST). Now {now:%a %H:%M} SAST. Nothing sent.")
         print_report(state, findings, phone_map(prospects))
@@ -808,7 +810,7 @@ def cmd_run(args):
     dnc = read_dnc()
     try:
         for i, r in enumerate(queue):
-            if not in_send_window():
+            if not args.ignore_window and not in_send_window():
                 print("Send window closed. Stopping; the rest go out on the next run.")
                 break
             if r["email"] in dnc or r["status"] != "active":
@@ -865,7 +867,10 @@ def main():
     p.set_defaults(func=cmd_test)
 
     sub.add_parser("check", help="Inbox check and report. Sends nothing.").set_defaults(func=cmd_check)
-    sub.add_parser("run", help="Daily live run. Asks for CONFIRM before sending.").set_defaults(func=cmd_run)
+    p = sub.add_parser("run", help="Daily live run. Asks for CONFIRM before sending.")
+    p.add_argument("--ignore-window", action="store_true",
+                   help="Skip the Mon to Fri 08:00 to 16:00 SAST check for this run only.")
+    p.set_defaults(func=cmd_run)
 
     p = sub.add_parser("dnc", help="Add addresses to the do_not_contact list.")
     p.add_argument("emails", nargs="+")
