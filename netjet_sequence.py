@@ -152,7 +152,7 @@ If this is not relevant, reply STOP and I will not contact you again."""
 
 EMAIL_2 = """Hi {first_name},
 
-Following up on my note from earlier this week.
+Following up on my earlier note.
 
 One thing I did not mention. If {company} already runs Sage, NetJet syncs with it directly, so approved hours and invoices flow through without anyone retyping them.
 
