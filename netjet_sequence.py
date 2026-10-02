@@ -462,25 +462,39 @@ def append_to_sent(password, msg):
 
 
 class Sender:
-    """One SMTP session that reconnects once if the server drops it."""
+    """Opens a fresh SMTP connection for every email.
+
+    The server closes a connection left idle for about a minute, and the
+    gaps between emails are 90 to 240 seconds, so a connection is never
+    held open across a gap. A 421 or a dropped connection is retried once.
+    """
 
     def __init__(self, password):
         self.password = password
-        self.smtp = smtp_connect(password)
+        smtp_connect(password).quit()    # check the password before the first send
+
+    def _send_once(self, msg):
+        smtp = smtp_connect(self.password)
+        try:
+            smtp.send_message(msg)
+        finally:
+            try:
+                smtp.quit()
+            except Exception:
+                pass
 
     def send(self, msg):
         try:
-            self.smtp.send_message(msg)
-        except smtplib.SMTPServerDisconnected:
-            self.smtp = smtp_connect(self.password)
-            self.smtp.send_message(msg)
+            self._send_once(msg)
+        except (smtplib.SMTPServerDisconnected, smtplib.SMTPResponseException) as exc:
+            if isinstance(exc, smtplib.SMTPResponseException) and exc.smtp_code != 421:
+                raise
+            time.sleep(5)
+            self._send_once(msg)
         append_to_sent(self.password, msg)
 
     def close(self):
-        try:
-            self.smtp.quit()
-        except Exception:
-            pass
+        pass
 
 
 # ---------------------------------------------------------------------------
